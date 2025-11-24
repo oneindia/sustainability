@@ -1,17 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>List of Sustainability Programs Worldwide</title>
+    <title>List of Sustainability Programs Wordlwide</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <!-- Using Tailwind CDN for convenience -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
     <style>
       #map { height: 600px; }
-      .program-card {
-        @apply flex flex-col rounded-lg bg-blue-100 p-3 mb-3 shadow text-sm;
-      }
-      .program-line { @apply my-0.5; }
+      /* Remove @apply usage since CDN doesn't support that */
+      /* Instead, all Tailwind classes applied inline in HTML / JS */
       #programTable th, #programTable td {
         border: 1px solid #aaa; padding: 6px; font-size: 14px; text-align: left;
       }
@@ -63,11 +62,10 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-//const dataUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTCTAaFzbM__M_NR9eE20p0fxVxHSAd7w3qmsBthagig4DOMKSji7SN3FjIerw1Eo7QVOEJmghYdmtb/pub?gid=841018762&single=true&output=tsv';
 const dataUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRQ6Y8JfnYAXrKq1Vsq3Ya5X-VVb4-R1EMSIVrKEYR03Y8SdfSeSV54sakbwg9nOf24QJm3RpYrnQdS/pub?gid=841018762&single=true&output=tsv';
 
-    
-// Static coordinate mapping for countries and cities
+
+// Static coordinate mapping for countries and cities definitions
 function getCoordsMap() {
   return {
     countryCoords: {
@@ -227,13 +225,14 @@ function addCityMarkers(filteredData) {
     const hoverPopupContent = `${key} (${programCount} program${programCount !== 1 ? 's' : ''})`;
     let clickPopupContent = '<div>';
     cityData.programs.forEach(p => {
-      clickPopupContent += `<div class="program-card">
-        <div class="program-line"><b>${p.program}</b></div>
-        <div class="program-line">${p.institution}</div>
-        <div class="program-line">${p.city}, ${p.country}</div>
-        <div class="program-line">${p.Language || 'N/A'}</div>
-        <div class="program-line">${p.Duration || 'N/A'}</div>
-      </div>`;
+      clickPopupContent += `
+        <div class="flex flex-col rounded-lg bg-blue-100 p-3 mb-3 shadow text-sm">
+          <div class="my-0.5"><b>${p.program}</b></div>
+          <div class="my-0.5">${p.institution}</div>
+          <div class="my-0.5">${p.city}, ${p.country}</div>
+          <div class="my-0.5">${p.Language || 'N/A'}</div>
+          <div class="my-0.5">${p.Duration || 'N/A'}</div>
+        </div>`;
     });
     clickPopupContent += '</div>';
     marker.bindPopup(clickPopupContent);
