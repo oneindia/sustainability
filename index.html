@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>List of Sustainability Programs Worldwide</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <style>
+      #map { height: 600px; }
+      .program-card {
+        @apply flex flex-col rounded-lg bg-blue-100 p-3 mb-3 shadow text-sm;
+      }
+      .program-line { @apply my-0.5; }
+      #programTable th, #programTable td {
+        border: 1px solid #aaa; padding: 6px; font-size: 14px; text-align: left;
+      }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+
+<div id="stats" class="flex items-center justify-between border border-gray-300 rounded-lg p-4 mb-4 bg-[rgb(240,253,244)]">
+  <h1 class="text-2xl font-bold text-gray-900">Sustainability Programs Worldwide</h1>
+  <div class="flex gap-6">
+    <div class="flex flex-col items-center border border-gray-300 rounded-lg p-4 w-24 bg-white shadow">
+      <span id="programCount" class="text-xl font-extrabold text-gray-900">0</span>
+      <span class="text-xs text-gray-600 uppercase tracking-wide mt-1">Programs</span>
+    </div>
+    <div class="flex flex-col items-center border border-gray-300 rounded-lg p-4 w-24 bg-white shadow">
+      <span id="countryCount" class="text-xl font-extrabold text-gray-900">0</span>
+      <span class="text-xs text-gray-600 uppercase tracking-wide mt-1">Countries</span>
+    </div>
+    <div class="flex flex-col items-center border border-gray-300 rounded-lg p-4 w-24 bg-white shadow">
+      <span id="cityCount" class="text-xl font-extrabold text-gray-900">0</span>
+      <span class="text-xs text-gray-600 uppercase tracking-wide mt-1">Cities</span>
+    </div>
+  </div>
+</div>
+
+<div id="map" class="border border-gray-300 rounded-lg mb-4 shadow"></div>
+
+<div id="filters" class="flex flex-wrap gap-4 items-center border border-gray-300 rounded-lg p-4 mb-6 bg-white shadow">
+  <label for="searchInput" class="font-semibold">Search:</label>
+  <input type="text" id="searchInput" placeholder="Program, Institution, City" class="rounded border-gray-300 border px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+
+  <label for="countrySelect" class="font-semibold">Country:</label>
+  <select id="countrySelect" class="rounded border-gray-300 border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+    <option value="">All Countries</option>
+  </select>
+
+  <label for="disciplineSelect" class="font-semibold">Discipline:</label>
+  <select id="disciplineSelect" class="rounded border-gray-300 border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+    <option value="">All Disciplines</option>
+  </select>
+
+  <button id="applyBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all">Apply</button>
+</div>
+
+<div id="programTableSection" class="border border-gray-300 rounded-lg p-4 bg-white shadow hidden">
+   <table id="programTable" class="min-w-full border-collapse"></table>
+   <button id="downloadBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded mt-4 transition-all hidden">Download CSV</button>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+const dataUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTCTAaFzbM__M_NR9eE20p0fxVxHSAd7w3qmsBthagig4DOMKSji7SN3FjIerw1Eo7QVOEJmghYdmtb/pub?gid=841018762&single=true&output=tsv';
+
+// Static coordinate mapping for countries and cities
+function getCoordsMap() {
+  return {
+    countryCoords: {
+      'Argentina': [-34.9964963, -64.9672817],
+      'Austria': [47.5162, 14.5501],
+      'Australia': [-25.2744, 133.7751],
+      'Belgium': [50.6402809, 4.6667145],
+      'Canada': [61.0666922, -107.991707],
+      'Chile': [-35.6751, -71.5430],
+      'China': [35.8617, 104.1954],
+      'Finland': [61.9241, 25.7482],
+      'France': [46.603354, 1.8883335],
+      'Germany': [51.1638175, 10.4478313],
+      'Indonesia': [-2.4833826, 117.8902853],
+      'Ireland': [53.1424, -7.6921],
+      'Italy': [41.8719, 12.5674],
+      'Netherlands': [52.1326, 5.2913],
+      'New Zealand': [-41.5000831, 172.8344077],
+      'Norway': [61.1529386, 8.7876653],
+      'Singapore': [1.3521, 103.8198],
+      'Spain': [40.4637, -3.7492],
+      'Sweden': [60.1282, 18.6435],
+      'Switzerland': [46.7985624, 8.2319736],
+      'UK': [55.3781, -3.4360],
+      'USA': [37.0902, -95.7129]
+    },
+    cityCoords: {
+      'Austria|Vienna': [48.2082, 16.3738],
+      'Australia|Melbourne': [-37.8136, 144.9631],
+      'Chile|Valdivia': [-39.8196, -73.2452],
+      'China|Hong Kong': [22.3193, 114.1694],
+      'Finland|Espoo': [60.2055, 24.6559],
+      'France|Paris': [48.8588897, 2.320041],
+      'Ireland|Galway': [53.2707, -9.0568],
+      'Italy|Milan': [45.4642, 9.19],
+      'Netherlands|Delft': [52.0116, 4.3571],
+      'Norway|Tromsø': [69.6496, 18.956],
+      'Singapore|Singapore': [1.3521, 103.8198],
+      'Spain|Barcelona': [41.3851, 2.1734],
+      'Sweden|Gothenburg': [57.7089, 11.9746],
+      'UK|Kingston upon Thames': [51.4123, -0.3007],
+      'UK|London': [51.5074, -0.1278],
+      'USA|Berkeley': [37.8715, -122.2730],
+      'USA|New York': [40.7128, -74.0060]
+    }
+  };
+}
+
+function getCoords(country, city) {
+  const {countryCoords, cityCoords} = getCoordsMap();
+  const cityKey = `${country}|${city}`;
+  if(cityCoords[cityKey]) return cityCoords[cityKey];
+  if(countryCoords[country]) return countryCoords[country];
+  return [0,0]; // fallback
+}
+
+let countryPrograms = {};
+
+const countrySelect = document.getElementById('countrySelect');
+const disciplineSelect = document.getElementById('disciplineSelect');
+const searchInput = document.getElementById('searchInput');
+const applyBtn = document.getElementById('applyBtn');
+const programTableSection = document.getElementById('programTableSection');
+const programTable = document.getElementById('programTable');
+const downloadBtn = document.getElementById('downloadBtn');
+
+const map = L.map('map').setView([20, 0], 2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+const countryCircleMarkers = [];
+let cityMarkers = L.layerGroup().addTo(map);
+
+function updateStats(filteredData) {
+  let totalPrograms = 0;
+  const countries = new Set();
+  const cities = new Set();
+  Object.entries(filteredData).forEach(([country, data]) => {
+    countries.add(country);
+    totalPrograms += data.programs.length;
+    data.programs.forEach(p => cities.add(p.city + ',' + p.country));
+  });
+  document.getElementById('programCount').textContent = totalPrograms;
+  document.getElementById('countryCount').textContent = countries.size;
+  document.getElementById('cityCount').textContent = cities.size;
+}
+
+function populateDropdowns() {
+  countrySelect.innerHTML = '<option value="">All Countries</option>';
+  disciplineSelect.innerHTML = '<option value="">All Disciplines</option>';
+  const countries = Object.keys(countryPrograms).sort();
+  countries.forEach(c => {
+    const option = document.createElement('option');
+    option.value = c;
+    option.textContent = c;
+    countrySelect.appendChild(option);
+  });
+  const disciplinesSet = new Set();
+  Object.values(countryPrograms).forEach(cData => {
+    cData.programs.forEach(p => {
+      if(p.Discipline) disciplinesSet.add(p.Discipline);
+    });
+  });
+  Array.from(disciplinesSet).sort().forEach(d => {
+    const option = document.createElement('option');
+    option.value = d;
+    option.textContent = d;
+    disciplineSelect.appendChild(option);
+  });
+}
+
+function createCountryCircles(filteredData) {
+  countryCircleMarkers.forEach(m => map.removeLayer(m));
+  countryCircleMarkers.length = 0;
+  Object.entries(filteredData).forEach(([country, data]) => {
+    const circle = L.circle(data.center, {
+      color: 'green',
+      fillColor: '#3bb143',
+      fillOpacity: 0.5,
+      radius: 270000
+    });
+    const programCount = data.programs.length;
+    const popupContent = `${country} (${programCount} program${programCount !== 1 ? 's' : ''})`;
+    circle.bindPopup(popupContent);
+    circle.on('mouseover', () => circle.openPopup());
+    circle.on('mouseout', () => circle.closePopup());
+    circle.on('click', () => {
+      showTable(data.programs);
+      const city = data.programs[0];
+      if(city) map.setView([city.lat, city.lon], 5);
+    });
+    circle.addTo(map);
+    countryCircleMarkers.push(circle);
+  });
+}
+
+function getProgramsByCity(filteredData) {
+  const cityMap = {};
+  Object.values(filteredData).forEach(countryData => {
+    countryData.programs.forEach(prog => {
+      const key = prog.city + ',' + prog.country;
+      if(!cityMap[key]) cityMap[key] = {lat: prog.lat, lon: prog.lon, programs: []};
+      cityMap[key].programs.push(prog);
+    });
+  });
+  return cityMap;
+}
+
+function addCityMarkers(filteredData) {
+  cityMarkers.clearLayers();
+  const cityMap = getProgramsByCity(filteredData);
+  Object.entries(cityMap).forEach(([key, cityData]) => {
+    const marker = L.marker([cityData.lat, cityData.lon]);
+    const programCount = cityData.programs.length;
+    const hoverPopupContent = `${key} (${programCount} program${programCount !== 1 ? 's' : ''})`;
+    let clickPopupContent = '<div>';
+    cityData.programs.forEach(p => {
+      clickPopupContent += `<div class="program-card">
+        <div class="program-line"><b>${p.program}</b></div>
+        <div class="program-line">${p.institution}</div>
+        <div class="program-line">${p.city}, ${p.country}</div>
+        <div class="program-line">${p.Language || 'N/A'}</div>
+        <div class="program-line">${p.Duration || 'N/A'}</div>
+      </div>`;
+    });
+    clickPopupContent += '</div>';
+    marker.bindPopup(clickPopupContent);
+    marker.on('mouseover', function () { this.bindTooltip(hoverPopupContent, {permanent: false, direction: 'top'}).openTooltip(); });
+    marker.on('mouseout', function () { this.closeTooltip(); });
+    marker.on('click', () => showTable(cityData.programs));
+    cityMarkers.addLayer(marker);
+  });
+  cityMarkers.addTo(map);
+}
+
+let lastTableRows = [];
+function showTable(rows) {
+  if(!rows || rows.length === 0) {
+    programTableSection.style.display = 'none';
+    return;
+  }
+  const headers = ["Program", "Institution", "City", "Country", "Discipline", "Language", "Duration"];
+  let html = `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  rows.forEach(row => {
+    html += `<tr>
+      <td>${row.program || ''}</td>
+      <td>${row.institution || ''}</td>
+      <td>${row.city || ''}</td>
+      <td>${row.country || ''}</td>
+      <td>${row.Discipline || ''}</td>
+      <td>${row.Language || ''}</td>
+      <td>${row.Duration || ''}</td>
+    </tr>`;
+  });
+  html += "</tbody>";
+  programTable.innerHTML = html;
+  programTableSection.style.display = 'block';
+  downloadBtn.style.display = 'inline-block';
+  lastTableRows = rows;
+}
+
+function tableRowsToCSV(rows) {
+  if(!rows.length) return "";
+  const headers = ["Program", "Institution", "City", "Country", "Discipline", "Language", "Duration"];
+  const csv = [headers.join(",")];
+  rows.forEach(row => {
+    csv.push([
+      row.program, row.institution, row.city, row.country,
+      row.Discipline || '', row.Language || '', row.Duration || ''
+    ].map(v => `"${(v||'').replace(/"/g, '""')}"`).join(","));
+  });
+  return csv.join("\n");
+}
+
+downloadBtn.addEventListener('click', () => {
+  const csvContent = tableRowsToCSV(lastTableRows);
+  const blob = new Blob([csvContent], {type: 'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = "programs.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+function updateMarkersVisibility(filteredData) {
+  const zoom = map.getZoom();
+  if(zoom >=1 && zoom <=4){
+    cityMarkers.clearLayers();
+    createCountryCircles(filteredData);
+  } else if(zoom >=5){
+    countryCircleMarkers.forEach(m => {if(map.hasLayer(m)) map.removeLayer(m);});
+    addCityMarkers(filteredData);
+  }
+}
+
+let lastFilters = {search:'', country:'', discipline:''};
+function filtersChanged() {
+  return searchInput.value.trim() !== lastFilters.search || countrySelect.value !== lastFilters.country || disciplineSelect.value !== lastFilters.discipline;
+}
+function setApplyBtnState(enabled) {
+  applyBtn.disabled = !enabled;
+  applyBtn.textContent = enabled ? 'Apply' : 'Done';
+}
+
+function filterPrograms(data) {
+  const searchVal = searchInput.value.trim().toLowerCase();
+  const selectedCountry = countrySelect.value;
+  const selectedDiscipline = disciplineSelect.value;
+  let filteredData = {};
+  let allRows = [];
+  Object.entries(data).forEach(([country, each]) => {
+    if(selectedCountry && country !== selectedCountry) return;
+    const filteredPrograms = each.programs.filter(prog => {
+      if(selectedDiscipline && prog.Discipline !== selectedDiscipline) return false;
+      if(searchVal){
+        const haystack = [prog.program, prog.institution, prog.city].map(v => v.toLowerCase());
+        return haystack.some(field => field.includes(searchVal));
+      }
+      return true;
+    });
+    if(filteredPrograms.length){
+      filteredData[country] = {center: each.center, programs: filteredPrograms};
+      allRows.push(...filteredPrograms);
+    }
+  });
+  return {filteredData, allRows};
+}
+
+function applyFilters(andShowTable=true) {
+  lastFilters = {
+    search: searchInput.value.trim(),
+    country: countrySelect.value,
+    discipline: disciplineSelect.value
+  };
+  setApplyBtnState(false);
+  const {filteredData, allRows} = filterPrograms(countryPrograms);
+  updateStats(filteredData);
+  updateMarkersVisibility(filteredData);
+  if(andShowTable){
+    if(allRows.length) showTable(allRows);
+    else showTable([]);
+  }
+}
+
+applyBtn.addEventListener('click', () => applyFilters(true));
+searchInput.addEventListener('input', () => setApplyBtnState(filtersChanged()));
+countrySelect.addEventListener('change', () => setApplyBtnState(filtersChanged()));
+disciplineSelect.addEventListener('change', () => setApplyBtnState(filtersChanged()));
+map.on('zoomend', () => applyFilters(false));
+
+// Manually parse TSV text to array of objects keyed by headers
+function parseTSV(text) {
+  const rows = text.split('\n').filter(r => r.trim() !== '');
+  if (rows.length < 2) return [];
+  const headers = rows[0].split('\t').map(h => h.trim());
+  const objs = rows.slice(1).map(row => {
+    const values = row.split('\t');
+    const obj = {};
+    headers.forEach((header, i) => { obj[header] = values[i] ? values[i].trim() : ''; });
+    return obj;
+  });
+  return objs;
+}
+
+function loadDataAndInitialize() {
+  fetch(dataUrl)
+  .then(response => {
+    if(!response.ok) throw new Error("Network response was not ok");
+    return response.text();
+  })
+  .then(tsvText => {
+    const dataObjects = parseTSV(tsvText);
+    console.log('Parsed TSV objects:', dataObjects);
+    processData(dataObjects);
+    populateDropdowns();
+    applyFilters(true);
+  })
+  .catch(err => {
+    console.error('Error loading TSV:', err);
+    alert("Error loading data: " + err.message);
+  });
+}
+
+function processData(dataRows) {
+  countryPrograms = {};
+  dataRows.forEach(row => {
+    if (!row.Country || !row.City) return;
+    const country = row.Country.trim();
+    const city = row.City.trim();
+    const latlon = getCoords(country, city);
+    if(!countryPrograms[country]){
+      countryPrograms[country] = {center: getCoordsMap().countryCoords[country] || latlon, programs: []};
+    }
+    countryPrograms[country].programs.push({
+      country, city,
+      program: row.Program || '',
+      institution: row.Institution || '',
+      Language: row.Language || '',
+      Duration: row.Duration || '',
+      Discipline: row.Discipline || '',
+      lat: latlon[0],
+      lon: latlon[1]
+    });
+  });
+}
+
+loadDataAndInitialize();
+
+</script>
+
+</body>
+</html>
